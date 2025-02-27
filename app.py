@@ -1,7 +1,7 @@
 import streamlit as st
 import os
-from rdkit import Chem
 import pandas as pd
+from openbabel import pybel  # 需要安装 openbabel
 
 # 标题
 st.title("XYZ 到 SMILES 转换器")
@@ -22,13 +22,13 @@ if uploaded_files:
             # 读取 XYZ 文件内容
             xyz_content = uploaded_file.read().decode("utf-8")
             
-            # 使用 RDKit 将 XYZ 转换为分子对象
-            mol = Chem.MolFromXYZBlock(xyz_content)
+            # 使用 Open Babel 将 XYZ 转换为分子对象
+            mol = pybel.readstring("xyz", xyz_content)
             
             if mol:
                 # 将分子对象转换为 SMILES
-                smiles = Chem.MolToSmiles(mol)
-                results.append({"文件名": uploaded_file.name, "SMILES": smiles})
+                smiles = mol.write("smi")
+                results.append({"文件名": uploaded_file.name, "SMILES": smiles.strip()})
             else:
                 results.append({"文件名": uploaded_file.name, "SMILES": "转换失败"})
         except Exception as e:
