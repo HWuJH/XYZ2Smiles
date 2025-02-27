@@ -1,7 +1,6 @@
 import streamlit as st
-import os
 import pandas as pd
-from openbabel import pybel  # 需要安装 openbabel
+from rdkit import Chem
 
 # 标题
 st.title("XYZ 到 SMILES 转换器")
@@ -9,6 +8,18 @@ st.write("上传包含 XYZ 文件的文件夹，批量转换为 SMILES 并导出
 
 # 上传文件夹
 uploaded_files = st.file_uploader("上传 XYZ 文件", type="xyz", accept_multiple_files=True)
+
+def extract_xyz_content(content):
+    """
+    从文件中提取标准的 XYZ 部分
+    """
+    lines = content.splitlines()
+    # 找到原子坐标的开始行
+    for i, line in enumerate(lines):
+        if len(line.split()) == 4:  # 判断是否为原子坐标行
+            xyz_lines = lines[i:]
+            return "\n".join(xyz_lines)
+    return None
 
 if uploaded_files:
     st.write(f"已上传 {len(uploaded_files)} 个文件。")
@@ -19,16 +30,21 @@ if uploaded_files:
     # 遍历每个文件
     for uploaded_file in uploaded_files:
         try:
-            # 读取 XYZ 文件内容
-            xyz_content = uploaded_file.read().decode("utf-8")
+            # 读取文件内容
+            content = uploaded_file.read().decode("utf-8")
             
-            # 使用 Open Babel 将 XYZ 转换为分子对象
-            mol = pybel.readstring("xyz", xyz_content)
+            # 提取标准的 XYZ 部分
+            xyz_content = extract_xyz_content(content)
+            if not xyz_content:
+                results.append({"文件名": uploaded_file.name, "SMILES": "文件格式错误"})
+                continue
             
+            # 使用 RDKit 将 XYZ 转换为分子对象
+            mol = Chem.MolFromXYZBlock(xyz_content)
             if mol:
                 # 将分子对象转换为 SMILES
-                smiles = mol.write("smi")
-                results.append({"文件名": uploaded_file.name, "SMILES": smiles.strip()})
+                smiles = Chem.MolToSmiles(mol)
+                results.append({"文件名": uploaded_file.name, "SMILES": smiles})
             else:
                 results.append({"文件名": uploaded_file.name, "SMILES": "转换失败"})
         except Exception as e:
